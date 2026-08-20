@@ -1,0 +1,308 @@
+<style>
+/* ============================================================
+   ตีคาปิบาราแสนสนุก - เกมฝึกอักษร ก ไก่ ถึง ฮ นกฮูก สำหรับเด็กอนุบาล
+   ไฟล์เดียวจบ: HTML + CSS + JavaScript
+   ============================================================ */
+
+:root{
+  --pink:#ff6fa5;
+  --pink-dark:#e0468a;
+  --sky:#5ec8ff;
+  --sky-dark:#2fa9f0;
+  --yellow:#ffd23f;
+  --yellow-dark:#f2a71b;
+  --purple:#a06cff;
+  --purple-dark:#7c3fe0;
+  --green:#3ddc84;
+  --dirt:#8a5a34;
+  --dirt-dark:#6b4325;
+  --white:#fffdf7;
+  --shadow: rgba(0,0,0,0.25);
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none;}
+html,body{
+  margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+  font-family: 'Trebuchet MS','Segoe UI',sans-serif;
+  touch-action:none;
+}
+
+/* พื้นหลังสวนสนุก */
+#gameRoot{
+  position:relative;
+  width:100vw; height:100vh;
+  background: linear-gradient(180deg,#8fe0ff 0%,#bdeeff 35%,#d9f7ff 55%,#fef3c4 100%);
+  overflow:hidden;
+}
+
+/* เมฆลอย */
+.cloud{
+  position:absolute; background:#fff; border-radius:50px;
+  opacity:.9; filter:drop-shadow(0 4px 4px rgba(0,0,0,.05));
+  animation: floatCloud linear infinite;
+}
+.cloud::before, .cloud::after{
+  content:""; position:absolute; background:#fff; border-radius:50%;
+}
+@keyframes floatCloud{
+  from{ transform:translateX(-150px); }
+  to{ transform:translateX(110vw); }
+}
+
+/* ชิงช้าสวรรค์ตกแต่งมุมจอ */
+.ferris{
+  position:absolute; right:2%; top:4%; width:120px; height:120px;
+  border:6px solid var(--purple); border-radius:50%; opacity:.35;
+  animation: spin 18s linear infinite;
+}
+@keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+/* ลูกโป่งตกแต่ง */
+.balloon{
+  position:absolute; width:30px; height:38px; border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+  opacity:.6; animation: bob 4s ease-in-out infinite;
+}
+@keyframes bob{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+
+/* ============ หน้าจอ (Screens) ============ */
+.screen{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; padding:20px; text-align:center;
+  z-index:20;
+}
+.hidden{ display:none !important; }
+
+.title-big{
+  font-size:clamp(32px,7vw,64px);
+  color:var(--pink-dark);
+  text-shadow: 3px 3px 0 #fff, 6px 6px 0 rgba(0,0,0,.1);
+  margin:0;
+  animation: pop 1.2s ease-in-out infinite alternate;
+}
+@keyframes pop{ from{transform:scale(1)} to{transform:scale(1.05)} }
+.subtitle{ font-size:clamp(14px,3vw,20px); color:#555; margin:0 0 10px; }
+
+.menu-btn{
+  font-size:clamp(16px,3.4vw,22px);
+  padding:14px 30px;
+  border:none; border-radius:40px;
+  background: linear-gradient(180deg,var(--yellow),var(--yellow-dark));
+  color:#5a3b00;
+  box-shadow: 0 6px 0 #c98a10, 0 8px 12px var(--shadow);
+  cursor:pointer;
+  min-width:240px;
+  transition: transform .1s;
+  font-weight:bold;
+}
+.menu-btn:active{ transform: translateY(4px); box-shadow:0 2px 0 #c98a10; }
+.menu-btn.secondary{ background: linear-gradient(180deg,var(--sky),var(--sky-dark)); color:#003a5c; box-shadow:0 6px 0 #1c7db3, 0 8px 12px var(--shadow); }
+.menu-btn.secondary:active{ box-shadow:0 2px 0 #1c7db3; }
+.menu-btn.purple{ background: linear-gradient(180deg,var(--purple),var(--purple-dark)); color:#fff; box-shadow:0 6px 0 #5a26b0,0 8px 12px var(--shadow); }
+.menu-btn.purple:active{ box-shadow:0 2px 0 #5a26b0; }
+.menu-btn.pink{ background: linear-gradient(180deg,var(--pink),var(--pink-dark)); color:#fff; box-shadow:0 6px 0 #a83368,0 8px 12px var(--shadow); }
+.menu-btn.pink:active{ box-shadow:0 2px 0 #a83368; }
+
+.btn-row{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+
+.diff-row{ display:flex; gap:10px; margin-top:6px; }
+.diff-btn{
+  padding:8px 18px; border-radius:20px; border:3px solid #fff;
+  background:rgba(255,255,255,.6); cursor:pointer; font-weight:bold; color:#555;
+}
+.diff-btn.active{ background:var(--purple); color:#fff; border-color:var(--purple-dark); }
+
+.panel{
+  background:rgba(255,255,255,.85);
+  border-radius:24px;
+  padding:24px 30px;
+  box-shadow:0 10px 30px var(--shadow);
+  max-width:520px;
+}
+
+/* ============ หน้าเกมหลัก ============ */
+#playScreen{ display:none; position:absolute; inset:0; z-index:10; }
+#playScreen.active{ display:block; }
+
+/* พื้นที่แสดงกล้อง อยู่หลังสุด */
+#camVideo{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  transform: scaleX(-1); /* mirror */
+  z-index:1; display:none; opacity:.55;
+}
+#handCanvas{ position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; display:none; }
+
+/* แถบสถานะบน */
+#hud{
+  position:absolute; top:0; left:0; right:0; z-index:15;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px; gap:10px;
+}
+.hud-chip{
+  background:rgba(255,255,255,.85); border-radius:20px; padding:6px 16px;
+  font-weight:bold; font-size:clamp(14px,2.6vw,20px); color:#5a3b00;
+  box-shadow:0 4px 8px var(--shadow);
+}
+#timeBarWrap{
+  position:absolute; top:60px; left:16px; right:16px; height:14px; z-index:15;
+  background:rgba(255,255,255,.6); border-radius:10px; overflow:hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.15);
+}
+#timeBar{ height:100%; width:100%; background:linear-gradient(90deg,var(--green),var(--yellow)); transition:width 1s linear; }
+
+/* ปุ่มกดฟังเสียงซ้ำ (ไม่โชว์ตัวหนังสือโจทย์) */
+#promptBox{
+  position:absolute; top:84px; left:50%; transform:translateX(-50%);
+  z-index:15; background:rgba(255,255,255,.95); border:2px solid var(--purple-dark); border-radius:24px;
+  padding:6px 20px; font-size:clamp(14px,3.2vw,19px); font-weight:bold; color:var(--purple-dark);
+  box-shadow:0 4px 10px var(--shadow); display:flex; align-items:center; gap:8px;
+  cursor:pointer; transition:transform 0.15s ease, background 0.15s ease;
+}
+#promptBox:active{
+  transform:translateX(-50%) scale(0.95);
+  background:#f0e8ff;
+}
+
+/* พื้นที่หลุมหนู 3x3 */
+#field{
+  position:absolute; inset:0; top:130px; bottom:10px; z-index:8;
+  display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  gap:6px; padding:10px 24px 24px;
+}
+.hole-wrap{
+  position:relative; display:flex; align-items:flex-end; justify-content:center;
+  overflow:visible;
+}
+.hole{
+  position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
+  width:84%; max-width:180px; aspect-ratio: 5/2;
+  background: radial-gradient(ellipse at center, var(--dirt-dark) 0%, var(--dirt) 68%, transparent 72%);
+  border-radius:50%;
+  box-shadow: inset 0 6px 12px rgba(0,0,0,.45);
+  z-index:1;
+}
+.mole{
+  position:absolute; bottom:14%; left:50%;
+  width:68%; max-width:140px;
+  transform-origin: center bottom;
+  transform: translate(-50%, 65%) scale(0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .22s cubic-bezier(.34,1.4,.64,1), opacity .15s ease;
+  cursor:pointer; z-index:2;
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,.25));
+}
+.mole.up{
+  transform: translate(-50%, 0%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.mole.hitgood{ animation: hitGood .5s ease; }
+.mole.hitbad{ animation: hitBad .5s ease; }
+@keyframes hitGood{
+  0%{ transform: translate(-50%,0%) scale(1) rotate(0); opacity:1; }
+  30%{ transform: translate(-50%,-15%) scale(1.25) rotate(-10deg); filter: drop-shadow(0 0 14px gold); opacity:1; }
+  60%{ transform: translate(-50%,-5%) scale(1.1) rotate(8deg); opacity:1; }
+  100%{ transform: translate(-50%,100%) scale(.6) rotate(0); opacity:0; }
+}
+@keyframes hitBad{
+  0%,100%{ transform: translate(-50%,0%) scale(1) rotate(0); opacity:1; }
+  20%{ transform: translate(-50%,0%) scale(1) rotate(-12deg); }
+  40%{ transform: translate(-50%,0%) scale(1) rotate(12deg); }
+  60%{ transform: translate(-50%,0%) scale(1) rotate(-8deg); }
+  80%{ transform: translate(-50%,0%) scale(1) rotate(8deg); }
+}
+
+.mole-body{ width:100%; display:block; }
+.mole-tag{
+  position:absolute; top:-26px; left:50%; transform:translateX(-50%);
+  background:#ffffff; border:3.5px solid var(--pink-dark); border-radius:20px;
+  padding:2px 18px; font-weight:900; font-size:clamp(24px,5.8vw,38px); color:var(--pink-dark);
+  white-space:nowrap; box-shadow:0 4px 10px rgba(0,0,0,0.3);
+  display:none; align-items:center; justify-content:center;
+  min-width:56px; height:48px; z-index:10;
+  pointer-events:none;
+}
+.mole.up .mole-tag{
+  display:inline-flex;
+}
+.cons-part{
+  color:var(--pink-dark);      /* สีตัวอักษรหลัก: ชมพูเข้ม */
+  font-size:1.35em;
+  font-weight:900;
+  display:inline-block;
+  vertical-align:middle;
+  text-shadow:1px 1px 0 #fff;
+  line-height:1;
+}
+
+/* ตัวชี้มือ/ค้อน สำหรับโหมดกล้อง */
+#pointer{
+  position:absolute; width:70px; height:70px; z-index:16;
+  transform:translate(-50%,-50%);
+  pointer-events:none; display:none;
+}
+#pointer .ring{
+  width:100%; height:100%; border-radius:50%;
+  border:5px solid var(--pink); opacity:.85;
+  box-shadow:0 0 16px var(--pink);
+}
+#pointer .fill{
+  position:absolute; inset:0; border-radius:50%;
+  background: conic-gradient(var(--yellow) var(--deg,0deg), transparent 0);
+  opacity:.7;
+}
+
+/* ป้ายเตือนกล้อง */
+#camHint{
+  position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.6); color:#fff; padding:8px 16px; border-radius:14px;
+  font-size:14px; z-index:16; display:none;
+}
+
+/* Confetti / particle layer */
+#fxLayer{ position:absolute; inset:0; z-index:17; pointer-events:none; overflow:hidden; }
+.confetti{
+  position:absolute; width:10px; height:10px; top:-20px;
+  animation: fall linear forwards;
+}
+@keyframes fall{
+  to{ transform: translateY(115vh) rotate(600deg); opacity:0; }
+}
+.star-pop{
+  position:absolute; font-size:28px; transform:translate(-50%,-50%);
+  animation: starPop .6s ease forwards;
+  pointer-events:none;
+}
+@keyframes starPop{
+  0%{ opacity:1; transform:translate(-50%,-50%) scale(.3) rotate(0); }
+  60%{ opacity:1; transform:translate(-50%,-90%) scale(1.3) rotate(30deg); }
+  100%{ opacity:0; transform:translate(-50%,-140%) scale(.8) rotate(60deg); }
+}
+
+/* Combo popup */
+#comboText{
+  position:absolute; top:35%; left:50%; transform:translate(-50%,-50%) scale(0);
+  font-size:clamp(24px,6vw,46px); color:var(--purple-dark); font-weight:bold;
+  text-shadow:2px 2px 0 #fff; z-index:18; pointer-events:none;
+}
+#comboText.show{ animation: comboPop .9s ease forwards; }
+@keyframes comboPop{
+  0%{ transform:translate(-50%,-50%) scale(0) rotate(-10deg); opacity:0; }
+  30%{ transform:translate(-50%,-50%) scale(1.2) rotate(4deg); opacity:1; }
+  70%{ transform:translate(-50%,-50%) scale(1) rotate(0); opacity:1; }
+  100%{ transform:translate(-50%,-70%) scale(.8) rotate(0); opacity:0; }
+}
+
+/* หน้าสรุปผล */
+.stars{ font-size:44px; letter-spacing:6px; }
+.result-row{ display:flex; justify-content:space-between; width:100%; padding:4px 0; font-size:18px; border-bottom:1px dashed #ddd; }
+.result-row b{ color:var(--pink-dark); }
+
+footer.small{ font-size:12px; color:#888; margin-top:6px; }
+
+@media (max-width:480px){
+  #field{ top:150px; gap:2px; padding:4px 8px 12px; }
+  .hud-chip{ font-size:13px; padding:5px 10px; }
+}
+</style>

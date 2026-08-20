@@ -834,6 +834,16 @@ const camHintEl      = document.getElementById('camHint');
 /* ============================================================
    ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis)
    ============================================================ */
+function primeSpeech(){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+    const u = new SpeechSynthesisUtterance('');
+    u.lang = 'th-TH';
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
 function speak(text){
   if(!state.soundOn || !('speechSynthesis' in window)) return;
   try{
