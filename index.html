@@ -733,7 +733,7 @@ function startBgm(){
   if(audioCtx.state === 'suspended') audioCtx.resume();
 
   bgmGain = audioCtx.createGain();
-  bgmGain.gain.setValueAtTime(0.55, audioCtx.currentTime);
+  bgmGain.gain.setValueAtTime(0.12, audioCtx.currentTime); // ระดับเสียงพอดี ไม่กลบเสียงโจทย์
   bgmGain.connect(audioCtx.destination);
 
   bgmNextTime = audioCtx.currentTime + 0.05;
@@ -753,6 +753,16 @@ function stopBgm(){
         try{ if(bgmGain) bgmGain.disconnect(); }catch(e){}
         bgmGain = null;
       }, 50);
+    }catch(e){}
+  }
+}
+
+function duckBgm(durationMs = 1300){
+  if(bgmGain && audioCtx){
+    try{
+      bgmGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      bgmGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+      bgmGain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + (durationMs / 1000));
     }catch(e){}
   }
 }
@@ -812,16 +822,70 @@ const camHintEl      = document.getElementById('camHint');
 /* ============================================================
    ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis)
    ============================================================ */
-function speak(text){
-  if(!state.soundOn) return;
+let thaiVoice = null;
+function loadVoices(){
+  if(!('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th_TH' || v.lang.startsWith('th')) || null;
+}
+if('speechSynthesis' in window){
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function primeSpeech(){
+  if(!('speechSynthesis' in window)) return;
   try{
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+    const u = new SpeechSynthesisUtterance('');
+    u.lang = 'th-TH';
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+function speak(text){
+  if(!state.soundOn || !('speechSynthesis' in window)) return;
+  try{
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.cancel();
+
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'th-TH';
-    u.rate = 0.95;
-    u.pitch = 1.1;
-    window.speechSynthesis.speak(u);
-  }catch(e){ /* เบราว์เซอร์บางตัวอาจไม่รองรับ ไม่เป็นไร เกมยังเล่นได้ */ }
+    if(thaiVoice) u.voice = thaiVoice;
+    u.rate = 0.90;
+    u.pitch = 1.05;
+    u.volume = 1.0;
+
+    // แอนิเมชันปุ่มเสียงกระพริบเบาๆ
+    if(promptBoxEl){
+      promptBoxEl.style.transform = 'translateX(-50%) scale(1.06)';
+      promptBoxEl.style.borderColor = 'var(--pink-dark)';
+      setTimeout(()=>{
+        if(promptBoxEl){
+          promptBoxEl.style.transform = 'translateX(-50%) scale(1)';
+          promptBoxEl.style.borderColor = 'var(--purple-dark)';
+        }
+      }, 350);
+    }
+
+    duckBgm(1400);
+
+    window._activeUtterance = u;
+    u.onend = () => { window._activeUtterance = null; };
+    u.onerror = (err) => {
+      console.warn('TTS error:', err);
+      window._activeUtterance = null;
+    };
+
+    setTimeout(()=>{
+      try{
+        if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+        window.speechSynthesis.speak(u);
+      }catch(e){}
+    }, 40);
+  }catch(e){
+    console.warn('speak exception:', e);
+  }
 }
 
 /* ============================================================
@@ -1141,13 +1205,14 @@ async function startGame(mode){
   resultScreen.classList.add('hidden');
   playScreen.classList.add('active');
 
+  primeSpeech();          // ปลดล็อกระบบเสียงสังเคราะห์ทันทีในการแตะของผู้ใช้
   await initSfxAudio();   // เตรียมไฟล์เสียงเอฟเฟกต์ (เริ่มเกม/ถูกต้อง/ผิด/หมดเวลา)
 
   buildField();
   timeBarEl.style.background = 'linear-gradient(90deg,var(--green),var(--yellow))';
   startTimer();
-  startNewTargetRound();
-  startBgm(); // เปิดเพลงเบา ๆ คลอตลอดเกม
+  startBgm();             // เปิดเพลงประกอบคลอตลอดเกม
+  setTimeout(startNewTargetRound, 300); // เริ่มอ่านโจทย์แรกหลังเปิดเกม 300ms
   spawnMoleWave();
 
   if(mode === 'cam'){
