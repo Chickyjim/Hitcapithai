@@ -1017,7 +1017,8 @@ function startNewTargetRound(){
 
 function spawnMoleWave(){
   if(!state.running) return;
-  const cfg = DIFF_SETTINGS[state.difficulty];
+  if(!state.targetConsonant) startNewTargetRound();
+  const cfg = DIFF_SETTINGS[state.difficulty] || DIFF_SETTINGS.medium;
 
   // เลือกหลุมว่างมาแสดงหนู (สุ่ม 3-5 หลุม) ต้องมีคำตอบที่ถูกต้องอย่างน้อย 1 ตัว
   const emptyHoles = state.holes.map((h,i)=>i).filter(i=>!state.holes[i].up);
@@ -1027,11 +1028,12 @@ function spawnMoleWave(){
   const chosenHoles = emptyHoles.sort(()=>Math.random()-0.5).slice(0, howMany);
 
   // เตรียมชุดคำ: ต้องมีคำตอบถูกต้องแน่นอน 1 ตำแหน่ง
-  const wordPool = pickRoundItems().filter(c=>c.id !== state.targetConsonant.id);
-  const words = [state.targetConsonant, ...wordPool.slice(0, chosenHoles.length-1)].sort(()=>Math.random()-0.5);
+  const targetId = state.targetConsonant ? state.targetConsonant.id : '';
+  const wordPool = pickRoundItems().filter(c=>c.id !== targetId);
+  const words = [state.targetConsonant || wordPool[0], ...wordPool.slice(0, chosenHoles.length-1)].sort(()=>Math.random()-0.5);
 
   chosenHoles.forEach((holeIdx, i)=>{
-    const item = words[i] || wordPool[i];
+    const item = words[i] || wordPool[i] || state.targetConsonant;
     showMole(holeIdx, item, cfg);
   });
 
@@ -1223,8 +1225,8 @@ async function startGame(mode){
   timeBarEl.style.background = 'linear-gradient(90deg,var(--green),var(--yellow))';
   startTimer();
   startBgm();             // เปิดเพลงประกอบคลอตลอดเกม
-  setTimeout(startNewTargetRound, 300); // เริ่มอ่านโจทย์แรกหลังเปิดเกม 300ms
-  spawnMoleWave();
+  startNewTargetRound();  // กำหนดโจทย์เป้าหมายและอ่านเสียงทันที
+  spawnMoleWave();        // ปล่อยคลื่นตัวคาปิบาราโผล่ขึ้นมา
 
   if(mode === 'cam'){
     initCamera();
