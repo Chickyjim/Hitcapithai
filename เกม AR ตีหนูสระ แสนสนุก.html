@@ -180,17 +180,18 @@ html,body{
   overflow:visible;
 }
 .hole{
-  position:absolute; bottom:6%; left:50%; transform:translateX(-50%);
-  width:82%; max-width:180px; aspect-ratio: 5/2;
+  position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
+  width:84%; max-width:180px; aspect-ratio: 5/2;
   background: radial-gradient(ellipse at center, var(--dirt-dark) 0%, var(--dirt) 68%, transparent 72%);
   border-radius:50%;
   box-shadow: inset 0 6px 12px rgba(0,0,0,.45);
   z-index:1;
 }
 .mole{
-  position:absolute; bottom:6%; left:50%;
+  position:absolute; bottom:14%; left:50%;
   width:68%; max-width:140px;
-  transform: translate(-50%, 100%) scale(0.6);
+  transform-origin: center bottom;
+  transform: translate(-50%, 65%) scale(0.4);
   opacity: 0;
   pointer-events: none;
   transition: transform .22s cubic-bezier(.34,1.4,.64,1), opacity .15s ease;
@@ -831,14 +832,22 @@ const pointerEl      = document.getElementById('pointer');
 const camHintEl      = document.getElementById('camHint');
 
 /* ============================================================
-   ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis)
+   ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis + Google Thai TTS Fallback)
+   รองรับทั้ง Google Chrome, Microsoft Edge, Safari บนทุกอุปกรณ์
    ============================================================ */
 let thaiVoice = null;
-function loadVoices(){
-  if(!('speechSynthesis' in window)) return;
+let currentTtsAudio = null;
+
+function getThaiVoice(){
+  if(!('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices();
-  thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th_TH' || v.lang.startsWith('th')) || null;
+  return voices.find(v => v.lang === 'th-TH' || v.lang === 'th_TH' || (v.lang && v.lang.toLowerCase().startsWith('th'))) || null;
 }
+
+function loadVoices(){
+  thaiVoice = getThaiVoice();
+}
+
 if('speechSynthesis' in window){
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
@@ -854,8 +863,26 @@ function primeSpeech(){
   }catch(e){}
 }
 
-function speak(text){
-  if(!state.soundOn || !('speechSynthesis' in window)) return;
+function playAudioTTS(text){
+  try{
+    if(currentTtsAudio){
+      currentTtsAudio.pause();
+      currentTtsAudio.currentTime = 0;
+    }
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=th&client=tw-ob`;
+    currentTtsAudio = new Audio(url);
+    currentTtsAudio.volume = 1.0;
+    currentTtsAudio.play().catch(err => {
+      console.warn('Audio TTS error, falling back to Web Speech:', err);
+      speakViaSpeechSynthesis(text);
+    });
+  }catch(e){
+    speakViaSpeechSynthesis(text);
+  }
+}
+
+function speakViaSpeechSynthesis(text){
+  if(!('speechSynthesis' in window)) return;
   try{
     if(window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.cancel();
@@ -867,35 +894,50 @@ function speak(text){
     u.pitch = 1.05;
     u.volume = 1.0;
 
-    // แอนิเมชันปุ่มเสียงกระพริบเบาๆ
-    if(promptBoxEl){
-      promptBoxEl.style.transform = 'translateX(-50%) scale(1.06)';
-      promptBoxEl.style.borderColor = 'var(--pink-dark)';
-      setTimeout(()=>{
-        if(promptBoxEl){
-          promptBoxEl.style.transform = 'translateX(-50%) scale(1)';
-          promptBoxEl.style.borderColor = 'var(--purple-dark)';
-        }
-      }, 350);
-    }
-
-    duckBgm(1400);
-
     window._activeUtterance = u;
     u.onend = () => { window._activeUtterance = null; };
     u.onerror = (err) => {
-      console.warn('TTS error:', err);
       window._activeUtterance = null;
+      playAudioTTS(text);
     };
 
     setTimeout(()=>{
       try{
         if(window.speechSynthesis.paused) window.speechSynthesis.resume();
         window.speechSynthesis.speak(u);
-      }catch(e){}
+      }catch(e){
+        playAudioTTS(text);
+      }
     }, 40);
   }catch(e){
-    console.warn('speak exception:', e);
+    playAudioTTS(text);
+  }
+}
+
+function speak(text){
+  if(!state.soundOn) return;
+
+  // แอนิเมชันปุ่มเสียงกระพริบ
+  if(promptBoxEl){
+    promptBoxEl.style.transform = 'translateX(-50%) scale(1.06)';
+    promptBoxEl.style.borderColor = 'var(--pink-dark)';
+    setTimeout(()=>{
+      if(promptBoxEl){
+        promptBoxEl.style.transform = 'translateX(-50%) scale(1)';
+        promptBoxEl.style.borderColor = 'var(--purple-dark)';
+      }
+    }, 350);
+  }
+
+  duckBgm(1400);
+
+  // ตรวจสอบว่าในเบราว์เซอร์มีเสียงพยัญชนะไทยแบบ Built-in พร้อมใช้งานหรือไม่
+  const voice = getThaiVoice();
+  if(voice){
+    speakViaSpeechSynthesis(text);
+  }else{
+    // ถ้าไม่มีเสียงไทยในระบบ (เช่น Chrome บน Windows ที่ไม่มี SAPI Thai) -> ใช้ Google Thai TTS ทันที 100%
+    playAudioTTS(text);
   }
 }
 
