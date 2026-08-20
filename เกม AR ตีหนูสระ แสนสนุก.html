@@ -832,113 +832,33 @@ const pointerEl      = document.getElementById('pointer');
 const camHintEl      = document.getElementById('camHint');
 
 /* ============================================================
-   ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis + Google Thai TTS Fallback)
-   รองรับทั้ง Google Chrome, Microsoft Edge, Safari บนทุกอุปกรณ์
+   ส่วนที่ 4: เสียงพูดภาษาไทย (SpeechSynthesis)
    ============================================================ */
-let thaiVoice = null;
-let currentTtsAudio = null;
-
-function getThaiVoice(){
-  if(!('speechSynthesis' in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  return voices.find(v => v.lang === 'th-TH' || v.lang === 'th_TH' || (v.lang && v.lang.toLowerCase().startsWith('th'))) || null;
-}
-
-function loadVoices(){
-  thaiVoice = getThaiVoice();
-}
-
-if('speechSynthesis' in window){
-  loadVoices();
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
-
-function primeSpeech(){
-  if(!('speechSynthesis' in window)) return;
+function speak(text){
+  if(!state.soundOn || !('speechSynthesis' in window)) return;
   try{
-    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
-    const u = new SpeechSynthesisUtterance('');
-    u.lang = 'th-TH';
-    window.speechSynthesis.speak(u);
-  }catch(e){}
-}
-
-function playAudioTTS(text){
-  try{
-    if(currentTtsAudio){
-      currentTtsAudio.pause();
-      currentTtsAudio.currentTime = 0;
-    }
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=th&client=tw-ob`;
-    currentTtsAudio = new Audio(url);
-    currentTtsAudio.volume = 1.0;
-    currentTtsAudio.play().catch(err => {
-      console.warn('Audio TTS error, falling back to Web Speech:', err);
-      speakViaSpeechSynthesis(text);
-    });
-  }catch(e){
-    speakViaSpeechSynthesis(text);
-  }
-}
-
-function speakViaSpeechSynthesis(text){
-  if(!('speechSynthesis' in window)) return;
-  try{
-    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.cancel();
-
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'th-TH';
-    if(thaiVoice) u.voice = thaiVoice;
-    u.rate = 0.90;
-    u.pitch = 1.05;
-    u.volume = 1.0;
+    u.rate = 0.95;
+    u.pitch = 1.1;
 
-    window._activeUtterance = u;
-    u.onend = () => { window._activeUtterance = null; };
-    u.onerror = (err) => {
-      window._activeUtterance = null;
-      playAudioTTS(text);
-    };
+    // แอนิเมชันปุ่มเสียงกระพริบ
+    if(promptBoxEl){
+      promptBoxEl.style.transform = 'translateX(-50%) scale(1.06)';
+      promptBoxEl.style.borderColor = 'var(--pink-dark)';
+      setTimeout(()=>{
+        if(promptBoxEl){
+          promptBoxEl.style.transform = 'translateX(-50%) scale(1)';
+          promptBoxEl.style.borderColor = 'var(--purple-dark)';
+        }
+      }, 350);
+    }
 
-    setTimeout(()=>{
-      try{
-        if(window.speechSynthesis.paused) window.speechSynthesis.resume();
-        window.speechSynthesis.speak(u);
-      }catch(e){
-        playAudioTTS(text);
-      }
-    }, 40);
-  }catch(e){
-    playAudioTTS(text);
-  }
-}
+    duckBgm(1400);
 
-function speak(text){
-  if(!state.soundOn) return;
-
-  // แอนิเมชันปุ่มเสียงกระพริบ
-  if(promptBoxEl){
-    promptBoxEl.style.transform = 'translateX(-50%) scale(1.06)';
-    promptBoxEl.style.borderColor = 'var(--pink-dark)';
-    setTimeout(()=>{
-      if(promptBoxEl){
-        promptBoxEl.style.transform = 'translateX(-50%) scale(1)';
-        promptBoxEl.style.borderColor = 'var(--purple-dark)';
-      }
-    }, 350);
-  }
-
-  duckBgm(1400);
-
-  // ตรวจสอบว่าในเบราว์เซอร์มีเสียงพยัญชนะไทยแบบ Built-in พร้อมใช้งานหรือไม่
-  const voice = getThaiVoice();
-  if(voice){
-    speakViaSpeechSynthesis(text);
-  }else{
-    // ถ้าไม่มีเสียงไทยในระบบ (เช่น Chrome บน Windows ที่ไม่มี SAPI Thai) -> ใช้ Google Thai TTS ทันที 100%
-    playAudioTTS(text);
-  }
+    window.speechSynthesis.speak(u);
+  }catch(e){ /* เบราว์เซอร์บางตัวอาจไม่รองรับ ไม่เป็นไร เกมยังเล่นได้ */ }
 }
 
 /* ============================================================
